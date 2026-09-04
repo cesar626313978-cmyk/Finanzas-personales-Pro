@@ -2,5 +2,7 @@
   "name": "FinaMatch Dashboard",
   "description": "Aplicación web moderna y responsiva de finanzas personales, presupuesto base cero y gestión multicuenta individual y en pareja.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

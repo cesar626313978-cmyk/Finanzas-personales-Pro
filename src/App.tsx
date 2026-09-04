@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ActiveTab, 
   ContextFilter, 
@@ -12,8 +12,11 @@ import {
   INITIAL_TRANSACTIONS, 
   INITIAL_ENVELOPES, 
   INITIAL_ACCOUNTS, 
-  INITIAL_NET_WORTH_ITEMS 
+  INITIAL_NET_WORTH_ITEMS,
+  PARTNER_ACCOUNTS,
+  PARTNER_TRANSACTIONS 
 } from './data/initialData';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -24,10 +27,14 @@ import { AccountsView } from './components/AccountsView';
 import { NetWorthView } from './components/NetWorthView';
 import { NewMovementModal } from './components/NewMovementModal';
 import { PSD2ConfigModal } from './components/PSD2ConfigModal';
+import { PartnerInviteModal } from './components/PartnerInviteModal';
+import { PWAInstallModal } from './components/PWAInstallModal';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { Toast, ToastData } from './components/Toast';
 import { formatCurrency, getTransactionPersonalImpact } from './utils/formatters';
 
-export default function App() {
+function AppContent() {
+  const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [contextFilter, setContextFilter] = useState<ContextFilter>('all');
   const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
@@ -36,8 +43,25 @@ export default function App() {
   const [netWorthItems, setNetWorthItems] = useState<NetWorthItem[]>(INITIAL_NET_WORTH_ITEMS);
   const [isNewMovementModalOpen, setIsNewMovementModalOpen] = useState(false);
   const [isPSD2ModalOpen, setIsPSD2ModalOpen] = useState(false);
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [isPWAInstallModalOpen, setIsPWAInstallModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [toast, setToast] = useState<ToastData | null>(null);
+
+  // Switch accounts dynamically based on active user to demonstrate true multi-user isolation
+  useEffect(() => {
+    if (currentUser?.email?.includes('elena')) {
+      setAccounts(PARTNER_ACCOUNTS);
+      setTransactions(PARTNER_TRANSACTIONS);
+      showToast('Perfil activo: Elena. Cuentas personales de César aisladas.', 'info');
+    } else {
+      setAccounts(INITIAL_ACCOUNTS);
+      setTransactions(INITIAL_TRANSACTIONS);
+      if (currentUser) {
+        showToast('Perfil activo: César. Cuentas personales de Elena aisladas.', 'info');
+      }
+    }
+  }, [currentUser?.email]);
 
   const [psd2Settings, setPsd2Settings] = useState<PSD2Settings>({
     isEnabled: true,
@@ -118,7 +142,7 @@ export default function App() {
 
     setTransactions((prev) => prev.filter((t) => t.id !== id));
 
-    // Revert Envelope spend
+    // Revert envelope if it was expense
     if (txToDelete.amount < 0) {
       const expenseValue = Math.abs(txToDelete.amount);
       setEnvelopes((prev) =>
@@ -147,51 +171,56 @@ export default function App() {
       })
     );
 
-    showToast(`Movimiento "${txToDelete.concept}" eliminado`, 'info');
+    showToast(`Movimiento "${txToDelete.concept}" eliminado correctamente`, 'info');
   };
 
-  // 3. Update Envelope Limit (Zero-Base Budget)
+  // 3. Update Envelope Limit (Zero-based rule)
   const handleUpdateEnvelopeLimit = (id: string, newLimit: number) => {
     setEnvelopes((prev) =>
-      prev.map((env) => (env.id === id ? { ...env, limit: newLimit } : env))
+      prev.map((env) => {
+        if (env.id === id) {
+          return { ...env, limit: newLimit };
+        }
+        return env;
+      })
     );
-    showToast('Límite del sobre actualizado', 'info');
+    showToast('Límite de sobre presupuestario actualizado', 'success');
   };
 
-  // 4. Transfer Funds between Envelopes
-  const handleTransferFunds = (sourceId: string, targetId: string, amount: number) => {
+  // 4. Transfer between Envelopes
+  const handleTransferFunds = (fromId: string, toId: string, amount: number) => {
     setEnvelopes((prev) =>
       prev.map((env) => {
-        if (env.id === sourceId) {
+        if (env.id === fromId) {
           return { ...env, limit: Math.max(0, env.limit - amount) };
         }
-        if (env.id === targetId) {
+        if (env.id === toId) {
           return { ...env, limit: env.limit + amount };
         }
         return env;
       })
     );
-    showToast(`Transferidos ${amount} € entre sobres presupuestarios`, 'success');
+    showToast(`Traspaso de ${formatCurrency(amount)} completado entre sobres`, 'success');
   };
 
-  // 5. Update Account Balance (Reconciliation)
-  const handleUpdateAccountBalance = (id: string, newBalance: number) => {
+  // 5. Update Manual Account Balance
+  const handleUpdateAccountBalance = (accountId: string, newBalance: number) => {
     setAccounts((prev) =>
       prev.map((acc) => {
-        if (acc.id === id) {
+        if (acc.id === accountId) {
           return {
             ...acc,
             balance: newBalance,
-            lastSynced: 'Conciliado ahora',
+            lastSynced: 'Ahora mismo (manual)',
           };
         }
         return acc;
       })
     );
-    showToast('Saldo conciliado y certificado correctamente', 'success');
+    showToast('Saldo bancario conciliado correctamente', 'success');
   };
 
-  // 6. Simulate Open Banking Sync
+  // 6. Global PSD2 Sync Simulation
   const handleSync = () => {
     setIsSyncing(true);
     setTimeout(() => {
@@ -215,19 +244,26 @@ export default function App() {
         isSyncing={isSyncing}
         onSync={handleSync}
         onOpenPSD2Config={() => setIsPSD2ModalOpen(true)}
+        onOpenPartnerInvite={() => setIsPartnerModalOpen(true)}
+        onOpenPWAInstallModal={() => setIsPWAInstallModalOpen(true)}
       />
 
       {/* Main Content Area */}
-      <div className="lg:pl-64 flex-1 flex flex-col min-w-0">
+      <div className="lg:pl-60 flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <Header
           contextFilter={contextFilter}
           onContextChange={setContextFilter}
           onOpenNewMovement={() => setIsNewMovementModalOpen(true)}
+          onOpenPartnerInviteModal={() => setIsPartnerModalOpen(true)}
+          onOpenPWAInstallModal={() => setIsPWAInstallModalOpen(true)}
         />
 
         {/* View Router */}
         <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+          {/* PWA In-App Install Banner (Self-dismissing / suppressable) */}
+          <PWAInstallBanner onOpenModal={() => setIsPWAInstallModalOpen(true)} />
+
           {activeTab === 'dashboard' && (
             <DashboardView
               contextFilter={contextFilter}
@@ -306,8 +342,30 @@ export default function App() {
         isSyncing={isSyncing}
       />
 
+      {/* Modal: "Vincular Cuenta Conjunta de Pareja" */}
+      <PartnerInviteModal
+        isOpen={isPartnerModalOpen}
+        onClose={() => setIsPartnerModalOpen(false)}
+        onShowToast={showToast}
+      />
+
+      {/* Modal: "Instalar Aplicación Progresiva (PWA)" */}
+      <PWAInstallModal
+        isOpen={isPWAInstallModalOpen}
+        onClose={() => setIsPWAInstallModalOpen(false)}
+        onInstalledToast={() => showToast('¡FinaMatch instalada como aplicación nativa!', 'success')}
+      />
+
       {/* Toast Feedback */}
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

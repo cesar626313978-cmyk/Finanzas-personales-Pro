@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with authentication and workspace metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "User UID from Firebase Auth" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Display name of the user" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "currentSpaceId": { "type": "string", "description": "Active shared space ID with partner" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" }
+      },
+      "required": ["id", "email"]
+    },
+    "BankAccount": {
+      "title": "BankAccount",
+      "description": "Bank account connected via Open Banking or managed manually",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "institution": { "type": "string" },
+        "logo": { "type": "string" },
+        "type": { "type": "string", "enum": ["checking", "savings", "investment", "credit"] },
+        "ownership": { "type": "string", "enum": ["personal", "shared"] },
+        "balance": { "type": "number" },
+        "currency": { "type": "string" },
+        "lastSynced": { "type": "string" },
+        "ibanMasked": { "type": "string" },
+        "userId": { "type": "string" },
+        "spaceId": { "type": "string" }
+      },
+      "required": ["id", "name", "balance", "ownership"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial income or expense transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "concept": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "category": { "type": "string" },
+        "accountId": { "type": "string" },
+        "accountName": { "type": "string" },
+        "accountType": { "type": "string", "enum": ["Individual", "Compartida_50_50", "Compartida_Custom"] },
+        "notes": { "type": "string" },
+        "userId": { "type": "string" },
+        "spaceId": { "type": "string" }
+      },
+      "required": ["id", "concept", "amount", "category"]
+    },
+    "BudgetEnvelope": {
+      "title": "BudgetEnvelope",
+      "description": "Zero-based budget envelope category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "limit": { "type": "number" },
+        "spent": { "type": "number" },
+        "type": { "type": "string", "enum": ["personal", "shared"] },
+        "splitPercentage": { "type": "number" },
+        "color": { "type": "string" },
+        "userId": { "type": "string" },
+        "spaceId": { "type": "string" }
+      },
+      "required": ["id", "name", "limit", "spent", "type"]
+    },
+    "SharedSpace": {
+      "title": "SharedSpace",
+      "description": "Shared financial space between two partners",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "memberIds": { "type": "array" },
+        "createdBy": { "type": "string" },
+        "inviteCode": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "memberIds", "createdBy"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Partner invitation to collaborate on a shared space",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fromUserId": { "type": "string" },
+        "fromUserEmail": { "type": "string" },
+        "toEmail": { "type": "string", "format": "email" },
+        "spaceId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "fromUserId", "toEmail", "spaceId", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "User profile with private settings"
+    },
+    "/users/{userId}/accounts/{accountId}": {
+      "schema": { "$ref": "BankAccount" },
+      "description": "User personal bank accounts"
+    },
+    "/users/{userId}/transactions/{txId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "User personal transactions"
+    },
+    "/users/{userId}/envelopes/{envId}": {
+      "schema": { "$ref": "BudgetEnvelope" },
+      "description": "User personal budget envelopes"
+    },
+    "/shared_spaces/{spaceId}": {
+      "schema": { "$ref": "SharedSpace" },
+      "description": "Joint space between couple/partners"
+    },
+    "/shared_spaces/{spaceId}/accounts/{accountId}": {
+      "schema": { "$ref": "BankAccount" },
+      "description": "Joint accounts (e.g. Sabadell 50/50)"
+    },
+    "/shared_spaces/{spaceId}/transactions/{txId}": {
+      "schema": { "$ref": "Transaction" },
+      "description": "Joint transactions split 50/50"
+    },
+    "/shared_spaces/{spaceId}/envelopes/{envId}": {
+      "schema": { "$ref": "BudgetEnvelope" },
+      "description": "Shared budget envelopes"
+    },
+    "/invitations/{inviteId}": {
+      "schema": { "$ref": "Invitation" },
+      "description": "Partner invitations to join shared spaces"
+    }
+  }
+}

@@ -64,3 +64,34 @@ export interface PSD2Settings {
   toleranceCents: number;
   lastReconciledAt: string;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  currentSpaceId?: string;
+  createdAt: string;
+}
+
+export interface SharedSpace {
+  id: string;
+  name: string;
+  memberIds: string[];
+  createdBy: string;
+  inviteCode: string;
+  createdAt: string;
+}
+
+export interface PartnerInvitation {
+  id: string;
+  fromUserId: string;
+  fromUserEmail: string;
+  fromUserName: string;
+  toEmail: string;
+  spaceId: string;
+  inviteCode: string;
+  status: 'pending' | 'accepted' | 'declined';
+  createdAt: string;
+}
+
